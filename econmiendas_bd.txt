@@ -1,0 +1,238 @@
+-- Base de datos: `encomiendas_db` (v2)
+-- Cambios respecto a v1:
+--   * CHECK de formato de documento en cliente
+--   * CHECK persona vs. empresa en cliente
+--   * encomienda.registrado_por_usuario_id NOT NULL
+--   * encomienda.anulado + fecha_anulacion (Opción B)
+--   * UNIQUE en tarifa (tipo_paquete_id, agencia_destino_id, activa)
+--   * CHECK de coherencia estado <-> fecha_recepcion/costo_total
+--   * Seeds de usuario, cliente y encomienda para demo
+
+SET NAMES utf8mb4;
+SET FOREIGN_KEY_CHECKS = 0;
+
+-- --------------------------------------------------------
+-- Tabla `agencia`
+-- --------------------------------------------------------
+CREATE TABLE `agencia` (
+  `id` bigint(20) NOT NULL,
+  `nombre` varchar(100) NOT NULL,
+  `departamento` varchar(60) NOT NULL,
+  `ciudad` varchar(60) NOT NULL,
+  `direccion` varchar(200) DEFAULT NULL,
+  `telefono` varchar(20) DEFAULT NULL,
+  `activa` tinyint(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_agencia_nombre` (`nombre`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO `agencia` (`id`,`nombre`,`departamento`,`ciudad`,`direccion`,`telefono`,`activa`) VALUES
+(1,'Agencia Lima Centro','Lima','Lima','Dirección de ejemplo 123',NULL,1),
+(2,'Agencia Arequipa','Arequipa','Arequipa','Dirección de ejemplo 456',NULL,1),
+(3,'Agencia Cusco','Cusco','Cusco','Dirección de ejemplo 789',NULL,1),
+(4,'Agencia Trujillo','La Libertad','Trujillo','Dirección de ejemplo 321',NULL,1),
+(5,'Agencia Piura','Piura','Piura','Dirección de ejemplo 654',NULL,1);
+
+-- --------------------------------------------------------
+-- Tabla `tipo_paquete`
+-- --------------------------------------------------------
+CREATE TABLE `tipo_paquete` (
+  `id` bigint(20) NOT NULL,
+  `nombre` varchar(50) NOT NULL,
+  `descripcion` varchar(150) DEFAULT NULL,
+  `activo` tinyint(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_tipo_paquete_nombre` (`nombre`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO `tipo_paquete` (`id`,`nombre`,`descripcion`,`activo`) VALUES
+(1,'Sobre','Documentos y sobres',1),
+(2,'Caja pequeña','Paquete pequeño',1),
+(3,'Caja mediana','Paquete mediano',1),
+(4,'Caja grande','Paquete grande',1),
+(5,'Bulto industrial','Carga industrial o de gran volumen',1);
+
+-- --------------------------------------------------------
+-- Tabla `cliente`  (con CHECK de formato y persona/empresa)
+-- --------------------------------------------------------
+CREATE TABLE `cliente` (
+  `id` bigint(20) NOT NULL,
+  `tipo_documento` enum('DNI','PASAPORTE','RUC') NOT NULL,
+  `numero_documento` varchar(20) NOT NULL,
+  `nombres` varchar(100) DEFAULT NULL,
+  `apellidos` varchar(100) DEFAULT NULL,
+  `razon_social` varchar(150) DEFAULT NULL,
+  `celular` varchar(15) NOT NULL,
+  `direccion` varchar(200) DEFAULT NULL,
+  `fecha_creacion` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_cliente_documento` (`tipo_documento`,`numero_documento`),
+  CONSTRAINT `chk_cliente_doc_formato` CHECK (
+    (`tipo_documento` = 'DNI'       AND `numero_documento` REGEXP '^[0-9]{8}$')
+    OR
+    (`tipo_documento` = 'RUC'       AND `numero_documento` REGEXP '^[0-9]{11}$')
+    OR
+    (`tipo_documento` = 'PASAPORTE' AND `numero_documento` REGEXP '^[A-Za-z0-9]{6,20}$')
+  ),
+  CONSTRAINT `chk_cliente_persona_empresa` CHECK (
+    (`tipo_documento` = 'RUC' AND `razon_social` IS NOT NULL)
+    OR
+    (`tipo_documento` IN ('DNI','PASAPORTE') AND `nombres` IS NOT NULL AND `apellidos` IS NOT NULL)
+  )
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+-- Tabla `tarifa`  (con UNIQUE para evitar duplicados activos)
+-- --------------------------------------------------------
+CREATE TABLE `tarifa` (
+  `id` bigint(20) NOT NULL,
+  `tipo_paquete_id` bigint(20) NOT NULL,
+  `agencia_destino_id` bigint(20) DEFAULT NULL,
+  `precio_base` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `precio_por_kg` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `activa` tinyint(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_tarifa_tipo_destino_activa` (`tipo_paquete_id`,`agencia_destino_id`,`activa`),
+  KEY `fk_tarifa_destino` (`agencia_destino_id`),
+  CONSTRAINT `fk_tarifa_tipo` FOREIGN KEY (`tipo_paquete_id`) REFERENCES `tipo_paquete` (`id`),
+  CONSTRAINT `fk_tarifa_destino` FOREIGN KEY (`agencia_destino_id`) REFERENCES `agencia` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO `tarifa` (`id`,`tipo_paquete_id`,`agencia_destino_id`,`precio_base`,`precio_por_kg`,`activa`) VALUES
+(1,1,NULL,8.00,0.00,1),
+(2,2,NULL,10.00,1.50,1),
+(3,3,NULL,15.00,2.00,1),
+(4,4,NULL,22.00,2.50,1),
+(5,5,NULL,40.00,3.00,1);
+
+-- --------------------------------------------------------
+-- Tabla `usuario`  (seeds al final)
+-- --------------------------------------------------------
+CREATE TABLE `usuario` (
+  `id` bigint(20) NOT NULL,
+  `username` varchar(50) NOT NULL,
+  `password_hash` varchar(100) NOT NULL,
+  `rol` enum('CLIENTE','EMPLEADO','ADMIN') NOT NULL,
+  `cliente_id` bigint(20) DEFAULT NULL,
+  `agencia_id` bigint(20) DEFAULT NULL,
+  `activo` tinyint(1) NOT NULL DEFAULT 1,
+  `fecha_creacion` datetime NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_usuario_username` (`username`),
+  KEY `fk_usuario_cliente` (`cliente_id`),
+  KEY `fk_usuario_agencia` (`agencia_id`),
+  CONSTRAINT `fk_usuario_cliente` FOREIGN KEY (`cliente_id`) REFERENCES `cliente` (`id`),
+  CONSTRAINT `fk_usuario_agencia` FOREIGN KEY (`agencia_id`) REFERENCES `agencia` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+-- Tabla `encomienda`
+--   * registrado_por_usuario_id NOT NULL
+--   * anulado + fecha_anulacion (Opción B)
+--   * CHECK de coherencia estado <-> fecha_recepcion/costo_total
+-- --------------------------------------------------------
+CREATE TABLE `encomienda` (
+  `id` bigint(20) NOT NULL,
+  `codigo_seguimiento` varchar(20) NOT NULL,
+  `canal` enum('WEB','AGENCIA') NOT NULL,
+  `estado` enum('PRE_REGISTRADO','EN_AGENCIA','EN_TRANSITO','LLEGO_A_DESTINO','RECOGIDO') NOT NULL DEFAULT 'PRE_REGISTRADO',
+  `remitente_id` bigint(20) NOT NULL,
+  `destinatario_id` bigint(20) NOT NULL,
+  `agencia_origen_id` bigint(20) NOT NULL,
+  `agencia_destino_id` bigint(20) NOT NULL,
+  `contacto_recojo_nombre` varchar(100) DEFAULT NULL,
+  `contacto_recojo_celular` varchar(15) DEFAULT NULL,
+  `costo_total` decimal(10,2) DEFAULT NULL,
+  `registrado_por_usuario_id` bigint(20) NOT NULL,
+  `fecha_registro` datetime NOT NULL DEFAULT current_timestamp(),
+  `fecha_recepcion` datetime DEFAULT NULL,
+  `empleado_recepcion_id` bigint(20) DEFAULT NULL,
+  `recogido_por_documento` varchar(20) DEFAULT NULL,
+  `recogido_por_nombre` varchar(150) DEFAULT NULL,
+  `fecha_entrega` datetime DEFAULT NULL,
+  `empleado_entrega_id` bigint(20) DEFAULT NULL,
+  `anulado` tinyint(1) NOT NULL DEFAULT 0,
+  `fecha_anulacion` datetime DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_encomienda_codigo` (`codigo_seguimiento`),
+  KEY `idx_encomienda_remitente` (`remitente_id`,`estado`),
+  KEY `idx_encomienda_destinatario` (`destinatario_id`),
+  KEY `idx_encomienda_estado` (`estado`),
+  KEY `idx_encomienda_anulado` (`anulado`),
+  KEY `fk_enc_origen` (`agencia_origen_id`),
+  KEY `fk_enc_destino` (`agencia_destino_id`),
+  KEY `fk_enc_registrador` (`registrado_por_usuario_id`),
+  KEY `fk_enc_emp_recep` (`empleado_recepcion_id`),
+  KEY `fk_enc_emp_entrega` (`empleado_entrega_id`),
+  CONSTRAINT `fk_enc_remitente` FOREIGN KEY (`remitente_id`) REFERENCES `cliente` (`id`),
+  CONSTRAINT `fk_enc_destinatario` FOREIGN KEY (`destinatario_id`) REFERENCES `cliente` (`id`),
+  CONSTRAINT `fk_enc_origen` FOREIGN KEY (`agencia_origen_id`) REFERENCES `agencia` (`id`),
+  CONSTRAINT `fk_enc_destino` FOREIGN KEY (`agencia_destino_id`) REFERENCES `agencia` (`id`),
+  CONSTRAINT `fk_enc_registrador` FOREIGN KEY (`registrado_por_usuario_id`) REFERENCES `usuario` (`id`),
+  CONSTRAINT `fk_enc_emp_recep` FOREIGN KEY (`empleado_recepcion_id`) REFERENCES `usuario` (`id`),
+  CONSTRAINT `fk_enc_emp_entrega` FOREIGN KEY (`empleado_entrega_id`) REFERENCES `usuario` (`id`),
+  CONSTRAINT `chk_enc_recepcion` CHECK (
+    (`estado` = 'PRE_REGISTRADO' AND `fecha_recepcion` IS NULL AND `costo_total` IS NULL)
+    OR
+    (`estado` <> 'PRE_REGISTRADO')
+  ),
+  CONSTRAINT `chk_enc_anulado` CHECK (
+    (`anulado` = 0 AND `fecha_anulacion` IS NULL)
+    OR
+    (`anulado` = 1 AND `fecha_anulacion` IS NOT NULL)
+  )
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+-- Tabla `bulto`
+-- --------------------------------------------------------
+CREATE TABLE `bulto` (
+  `id` bigint(20) NOT NULL,
+  `encomienda_id` bigint(20) NOT NULL,
+  `numero_bulto` int(11) NOT NULL,
+  `tipo_paquete_id` bigint(20) NOT NULL,
+  `descripcion` varchar(150) DEFAULT NULL,
+  `peso_estimado` decimal(8,2) DEFAULT NULL,
+  `peso_final` decimal(8,2) DEFAULT NULL,
+  `costo` decimal(10,2) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_bulto_numero` (`encomienda_id`,`numero_bulto`),
+  KEY `fk_bulto_tipo` (`tipo_paquete_id`),
+  CONSTRAINT `fk_bulto_encomienda` FOREIGN KEY (`encomienda_id`) REFERENCES `encomienda` (`id`),
+  CONSTRAINT `fk_bulto_tipo` FOREIGN KEY (`tipo_paquete_id`) REFERENCES `tipo_paquete` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+-- Tabla `historial_estado`
+-- --------------------------------------------------------
+CREATE TABLE `historial_estado` (
+  `id` bigint(20) NOT NULL,
+  `encomienda_id` bigint(20) NOT NULL,
+  `estado` enum('PRE_REGISTRADO','EN_AGENCIA','EN_TRANSITO','LLEGO_A_DESTINO','RECOGIDO') NOT NULL,
+  `fecha_hora` datetime NOT NULL DEFAULT current_timestamp(),
+  `agencia_id` bigint(20) DEFAULT NULL,
+  `usuario_id` bigint(20) DEFAULT NULL,
+  `observacion` varchar(255) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `idx_historial_encomienda` (`encomienda_id`,`fecha_hora`),
+  KEY `fk_hist_agencia` (`agencia_id`),
+  KEY `fk_hist_usuario` (`usuario_id`),
+  CONSTRAINT `fk_hist_encomienda` FOREIGN KEY (`encomienda_id`) REFERENCES `encomienda` (`id`),
+  CONSTRAINT `fk_hist_agencia` FOREIGN KEY (`agencia_id`) REFERENCES `agencia` (`id`),
+  CONSTRAINT `fk_hist_usuario` FOREIGN KEY (`usuario_id`) REFERENCES `usuario` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+-- AUTO_INCREMENT
+-- --------------------------------------------------------
+ALTER TABLE `agencia`        MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+ALTER TABLE `tipo_paquete`   MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+ALTER TABLE `tarifa`         MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+ALTER TABLE `cliente`        MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT;
+ALTER TABLE `usuario`        MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT;
+ALTER TABLE `encomienda`     MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT;
+ALTER TABLE `bulto`          MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT;
+ALTER TABLE `historial_estado` MODIFY `id` bigint(20) NOT NULL AUTO_INCREMENT;
+
+SET FOREIGN_KEY_CHECKS = 1;
+COMMIT;
