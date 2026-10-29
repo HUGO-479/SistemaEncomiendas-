@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head><title>Recepción de Agencia</title></head>
+<body>
+<h2>Buscar Pre-registro por DNI</h2>
+<form th:action="@{/empleado/recepcion/buscar}" method="get">
+    <input type="text" name="dni" placeholder="Ingrese DNI del remitente" required>
+    <button type="submit">Buscar</button>
+</form>
+</body>
+</html>

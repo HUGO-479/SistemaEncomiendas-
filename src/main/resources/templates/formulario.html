@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Registrar Agencia</title>
+</head>
+<body>
+<h1>Registrar Nueva Agencia</h1>
+<!-- El action apunta a la ruta del Controlador POST -->
+<form th:action="@{/admin/agencias/guardar}" th:object="${agencia}" method="post">
+    <label>Nombre:</label>
+    <input type="text" th:field="*{nombre}" required><br><br>
+
+    <label>Departamento:</label>
+    <input type="text" th:field="*{departamento}" required><br><br>
+
+    <label>Ciudad:</label>
+    <input type="text" th:field="*{ciudad}" required><br><br>
+
+    <!-- Como 'activa' es un booleano, usamos un checkbox -->
+    <label>Activa:</label>
+    <input type="checkbox" th:field="*{activa}"><br><br>
+
+    <button type="submit">Guardar</button>
+</form>
+</body>
+</html>

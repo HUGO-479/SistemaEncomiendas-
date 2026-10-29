@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head><title>Mis Envíos</title></head>
+<body>
+<h1>Mis Envíos</h1>
+<a href="/cliente/pre-registro">Hacer un nuevo Pre-registro</a>
+<table border="1">
+    <tr>
+        <th>Código</th>
+        <th>Destinatario</th>
+        <th>Estado</th>
+    </tr>
+    <tr th:each="envio : ${envios}">
+        <td th:text="${envio.codigoSeguimiento}"></td>
+        <td th:text="${envio.destinatario.nombres}"></td>
+        <td th:text="${envio.estado}"></td>
+    </tr>
+</table>
+<br>
+<form action="/logout" method="post">
+    <button type="submit">Cerrar Sesión</button>
+</form>
+</body>
+</html>

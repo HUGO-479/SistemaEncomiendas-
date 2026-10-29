@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Lista de Agencias</title>
+    <!-- Aquí el Compañero C puede agregar el CSS -->
+</head>
+<body>
+<h1>Lista de Agencias</h1>
+<a th:href="@{/admin/agencias/nueva}">Registrar Nueva Agencia</a>
+
+<table border="1">
+    <thead>
+    <tr>
+        <th>ID</th>
+        <th>Nombre</th>
+        <th>Ciudad</th>
+        <th>Estado</th>
+    </tr>
+    </thead>
+    <tbody>
+    <!-- Thymeleaf recorre la lista de agencias enviada desde el Controlador -->
+    <tr th:each="agencia : ${agencias}">
+        <td th:text="${agencia.id}">1</td>
+        <td th:text="${agencia.nombre}">Agencia Lima</td>
+        <td th:text="${agencia.ciudad}">Lima</td>
+        <td th:text="${agencia.activa ? 'Activa' : 'Inactiva'}">Activa</td>
+    </tr>
+    </tbody>
+</table>
+</body>
+</html>
