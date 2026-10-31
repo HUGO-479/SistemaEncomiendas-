@@ -8,26 +8,31 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
-import java.util.stream.Collectors;
+
+import java.util.List;
 
 @Service
-public class CustomUserDetailsService implements UserDetailsService {
-    private final UsuarioRepository usuarioRepository;
+public class UsuarioDetailsService implements UserDetailsService {
 
-    public CustomUserDetailsService(UsuarioRepository usuarioRepository) {
-        this.usuarioRepository = usuarioRepository;
+    private final UsuarioRepository repo;
+
+    public UsuarioDetailsService(UsuarioRepository repo) {
+        this.repo = repo;
     }
 
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
-        Usuario usuario = usuarioRepository.findByUsername(username)
+        Usuario u = repo.findByUsername(username)
                 .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado"));
 
-        // Convertimos los roles de la BD en Authorities de Spring Security
-        var authorities = usuario.getRoles().stream()
-                .map(rol -> new SimpleGrantedAuthority("ROLE_" + rol.getNombre()))
-                .collect(Collectors.toList());
+        List<SimpleGrantedAuthority> authorities = u.getRoles().stream()
+                .map(r -> new SimpleGrantedAuthority("ROLE_" + r.getNombre()))
+                .toList();
 
-        return new User(usuario.getUsername(), usuario.getPasswordHash(), usuario.getActivo(), true, true, true, authorities);
+        return User.withUsername(u.getUsername())
+                .password(u.getPasswordHash())
+                .authorities(authorities)
+                .disabled(!u.isActivo())
+                .build();
     }
 }

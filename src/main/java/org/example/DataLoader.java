@@ -1,7 +1,6 @@
 package org.example;
 
 import org.example.persona.model.Persona;
-import org.example.persona.model.TipoDocumento;
 import org.example.persona.repository.PersonaRepository;
 import org.example.usuario.model.Rol;
 import org.example.usuario.model.Usuario;
@@ -10,61 +9,67 @@ import org.example.usuario.repository.UsuarioRepository;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
-
-import java.util.List;
+import org.springframework.transaction.annotation.Transactional;
+import org.example.persona.model.TipoDocumento;
 
 @Component
 public class DataLoader implements CommandLineRunner {
 
+    private static final String ADMIN_USERNAME = "admin";
+    private static final String ADMIN_PASSWORD = "admin123";
+
+    private final RolRepository rolRepo;
     private final PersonaRepository personaRepo;
     private final UsuarioRepository usuarioRepo;
-    private final RolRepository rolRepo; // <--- Aquí inyectamos el rolRepo
-    private final PasswordEncoder passwordEncoder;
+    private final PasswordEncoder encoder;
 
-    // Constructor con todos los repositorios
-    public DataLoader(PersonaRepository personaRepo,
+    public DataLoader(RolRepository rolRepo,
+                      PersonaRepository personaRepo,
                       UsuarioRepository usuarioRepo,
-                      RolRepository rolRepo,
-                      PasswordEncoder passwordEncoder) {
+                      PasswordEncoder encoder) {
+        this.rolRepo = rolRepo;
         this.personaRepo = personaRepo;
         this.usuarioRepo = usuarioRepo;
-        this.rolRepo = rolRepo;
-        this.passwordEncoder = passwordEncoder;
+        this.encoder = encoder;
     }
 
     @Override
-    public void run(String... args) throws Exception {
-        // 1. Verificamos si ya existe la persona para no duplicarla
-        boolean personaExiste = personaRepo.findByTipoDocumentoAndNumeroDocumento(TipoDocumento.DNI, "12345678").isPresent();
+    @Transactional
+    public void run(String... args) {
+        Rol rolAdmin = crearRolSiNoExiste("ADMIN", "Administrador del sistema");
+        crearRolSiNoExiste("EMPLEADO", "Personal de agencia");
+        crearRolSiNoExiste("CLIENTE", "Cliente o remitente");
 
-        if (!personaExiste) {
-            // 2. Creamos la Persona
-            Persona persona = new Persona();
-            persona.setTipoDocumento(TipoDocumento.DNI);
-            persona.setNumeroDocumento("12345678");
-            persona.setNombres("Admin");
-            persona.setApellidos("Sistema");
-            persona = personaRepo.save(persona);
+        crearAdminSiNoExiste(rolAdmin);
+    }
 
-            // 3. Creamos el Rol y lo guardamos con rolRepo
-            Rol rolAdmin = new Rol();
-            rolAdmin.setNombre("ADMIN");
-            rolAdmin.setDescripcion("Administrador del sistema");
-            rolAdmin = rolRepo.save(rolAdmin); // <--- ¡Línea corregida!
+    private Rol crearRolSiNoExiste(String nombre, String descripcion) {
+        return rolRepo.findByNombre(nombre).orElseGet(() -> {
+            Rol rol = new Rol();
+            rol.setNombre(nombre);
+            rol.setDescripcion(descripcion);
+            return rolRepo.save(rol);
+        });
+    }
 
-            // 4. Creamos el Usuario y le asignamos el rol
-            Usuario usuario = new Usuario();
-            usuario.setUsername("admin");
-            usuario.setPasswordHash(passwordEncoder.encode("admin123"));
-            usuario.setPersona(persona);
-            usuario.setRoles(List.of(rolAdmin));
-            usuario.setActivo(true);
-
-            usuarioRepo.save(usuario);
-
-            System.out.println("HASH DE PRUEBA: " + passwordEncoder.encode("admin123"));
-        } else {
-            System.out.println("✅ La base de datos ya contiene datos, no se insertó nada.");
+    private void crearAdminSiNoExiste(Rol rolAdmin) {
+        if (usuarioRepo.findByUsername(ADMIN_USERNAME).isPresent()) {
+            return;
         }
+
+        Persona persona = new Persona();
+        persona.setTipoDocumento(TipoDocumento.DNI);   // ajusta al enum real de tu proyecto
+        persona.setNumeroDocumento("00000001");
+        persona.setNombres("Administrador");
+        persona.setActivo(true);
+        persona = personaRepo.save(persona);           // guardar antes de asociar
+
+        Usuario usuario = new Usuario();
+        usuario.setPersona(persona);
+        usuario.setUsername(ADMIN_USERNAME);
+        usuario.setPasswordHash(encoder.encode(ADMIN_PASSWORD));
+        usuario.setActivo(true);
+        usuario.getRoles().add(rolAdmin);
+        usuarioRepo.save(usuario);
     }
 }
