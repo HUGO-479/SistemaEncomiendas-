@@ -1,4 +1,4 @@
-package org.example.shared.util;
+package org.example.shared;
 
 import java.util.UUID;
 

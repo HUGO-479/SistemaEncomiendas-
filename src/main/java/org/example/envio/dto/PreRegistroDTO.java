@@ -1,4 +1,4 @@
-package org.example.encomienda.dto;
+package org.example.envio.dto;
 
 public class PreRegistroDTO {
     private String remitenteDni;

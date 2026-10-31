@@ -1,6 +1,6 @@
 package org.example.misenvios.controller;
 
-import org.example.encomienda.model.Encomienda;
+import org.example.envio.model.Envio;
 import org.example.misenvios.service.MisEnviosService;
 import org.example.usuario.model.Usuario;
 import org.example.usuario.repository.UsuarioRepository;
@@ -27,7 +27,7 @@ public class MisEnviosController {
     @GetMapping
     public String listarMisEnvios(Authentication auth, Model model) {
         Usuario clienteLogueado = usuarioRepository.findByUsername(auth.getName()).orElseThrow();
-        List<Encomienda> envios = misEnviosService.obtenerEnviosDelCliente(clienteLogueado);
+        List<Envio> envios = misEnviosService.obtenerEnviosDelCliente(clienteLogueado);
 
         model.addAttribute("envios", envios);
         return "misenvios/lista"; // Busca templates/misenvios/lista.html

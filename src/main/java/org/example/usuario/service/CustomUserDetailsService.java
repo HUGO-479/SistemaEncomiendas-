@@ -8,12 +8,10 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
-
-import java.util.Collections;
+import java.util.stream.Collectors;
 
 @Service
 public class CustomUserDetailsService implements UserDetailsService {
-
     private final UsuarioRepository usuarioRepository;
 
     public CustomUserDetailsService(UsuarioRepository usuarioRepository) {
@@ -23,14 +21,13 @@ public class CustomUserDetailsService implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         Usuario usuario = usuarioRepository.findByUsername(username)
-                .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado: " + username));
+                .orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado"));
 
-        return new User(
-                usuario.getUsername(),
-                usuario.getPasswordHash(),
-                usuario.getActivo(),
-                true, true, true,
-                Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + usuario.getRol().name()))
-        );
+        // Convertimos los roles de la BD en Authorities de Spring Security
+        var authorities = usuario.getRoles().stream()
+                .map(rol -> new SimpleGrantedAuthority("ROLE_" + rol.getNombre()))
+                .collect(Collectors.toList());
+
+        return new User(usuario.getUsername(), usuario.getPasswordHash(), usuario.getActivo(), true, true, true, authorities);
     }
 }

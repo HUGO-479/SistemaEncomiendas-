@@ -1,6 +1,6 @@
-package org.example.shared.util;
+package org.example.shared;
 
-import org.example.cliente.model.TipoDocumento;
+import org.example.persona.model.TipoDocumento;
 
 public class ValidadorDocumento {
 

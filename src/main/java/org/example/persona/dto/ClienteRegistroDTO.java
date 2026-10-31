@@ -1,6 +1,6 @@
-package org.example.cliente.dto;
+package org.example.persona.dto;
 
-import org.example.cliente.model.TipoDocumento;
+import org.example.persona.model.TipoDocumento;
 
 public class ClienteRegistroDTO {
     private TipoDocumento tipoDocumento;

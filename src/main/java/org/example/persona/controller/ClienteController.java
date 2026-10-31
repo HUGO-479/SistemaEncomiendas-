@@ -1,6 +1,6 @@
-package org.example.cliente.controller;
+package org.example.persona.controller;
 
-import org.example.cliente.service.ClienteService;
+import org.example.persona.service.PersonaService;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -10,10 +10,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 @RequestMapping("/admin/clientes")
 public class ClienteController {
 
-    private final ClienteService clienteService;
+    private final PersonaService personaService;
 
-    public ClienteController(ClienteService clienteService) {
-        this.clienteService = clienteService;
+    public ClienteController(PersonaService personaService) {
+        this.personaService = personaService;
     }
 
     @GetMapping
